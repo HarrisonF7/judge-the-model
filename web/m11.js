@@ -44,6 +44,7 @@ export function metrics(c) {
     negatives: fp + tn,
     flagged,
     flagged_per_100: ratio(100 * flagged, n),
+    false_alarms_per_100: ratio(100 * fp, n),
     prevalence: ratio(tp + fn, n),
     accuracy: ratio(tp + tn, n),
     sensitivity: ratio(tp, tp + fn),

@@ -1,5 +1,5 @@
 
-// Starter Node app: four sections that read results/ and show model metrics.
+// Four sections reading exported results only; all metrics use m11.js.
 // Run locally: npm start (then open http://localhost:8766/)
 // All calculated values come from m11.js.
 
@@ -29,24 +29,25 @@ const int = (n) => n.toLocaleString("en-US");
 const state = {
   section: SECTIONS[0],
   key: "readmission",
-  model: "logreg"
+  model: "logreg",
+  cutoff: 0.50
 };
 
 const cache = {};
 
 async function load(name) {
   if (!(name in cache)) {
-    const r = await fetch(`../results/${name}.json`);
-    cache[name] = r.ok ? await r.json() : null;
+    try {
+      const r = await fetch(`../results/${name}.json`);
+      if (!r.ok) return null;
+      cache[name] = await r.json();
+    } catch { return null; }
   }
   return cache[name];
 }
 
 const caption = (text) =>
   `<p class="caption">${esc(text)}</p>`;
-
-const starterNote = (text) =>
-  `<p class="info">Starter display: ${esc(text)} Build this section up to its required minimum.</p>`;
 
 // Table helper
 function table(rows) {
@@ -83,7 +84,7 @@ async function recommendations() {
   const any = Object.values(recs).some(Boolean);
   const target = $("recommendations");
 
-  target.innerHTML = any
+  target.innerHTML = '<h2 id="rec-h">Recommendations</h2>' + (any
     ? m11.DATASETS.map((k) =>
         `<p><strong>${esc(m11.DATASET_LABEL[k])}:</strong> ${
           recs[k] ? esc(recs[k]) : "<em>not written yet</em>"
@@ -91,7 +92,41 @@ async function recommendations() {
       ).join("")
     : caption(
         "No recommendations yet: fill in Recommendations in DECISIONS.md, run python -m analysis, then commit and push."
-      );
+      ));
+}
+
+const JOB = {
+  readmission: "At discharge, predict readmission within 30 days. Positive means readmitted within 30 days; negative means no readmission within 30 days. These are historical inpatient stays involving diabetes, not all hospital discharges.",
+  diabetes: "Flag adults for follow-up testing. Positive means reported doctor diagnosis or HbA1c ≥ 6.5%; negative means neither. This label includes already diagnosed adults and describes current status, not future diabetes."
+};
+
+function matrix(c, title) {
+  return `<h3>${esc(title)}</h3>${table([
+    {"Actual / Predicted": "Positive", "Predicted positive": `${int(c.tp)} · TP: caught positives`, "Predicted negative": `${int(c.fn)} · FN: missed positives`},
+    {"Actual / Predicted": "Negative", "Predicted positive": `${int(c.fp)} · FP: false alarms`, "Predicted negative": `${int(c.tn)} · TN: correctly unflagged`}
+  ])}`;
+}
+
+function performance(res, model, cutoff, part = "test") {
+  const c = m11.confusion(...m11.preds(res, model, part), cutoff);
+  const m = m11.metrics(c);
+  return { Model: m11.MODEL_LABEL[model], Accuracy: m11.fmtPct(m.accuracy),
+    "Sensitivity (recall / TPR)": m11.fmtPct(m.sensitivity), Specificity: m11.fmtPct(m.specificity),
+    FPR: m11.fmtPct(m.fpr), Precision: m11.fmtPct(m.precision), F1: m11.fmtNum(m.f1) };
+}
+
+// Axes are proportions on [0, 1]; plotted coordinates come from m11 helpers.
+function plot(lines, title, xLabel, yLabel, dots = false) {
+  const x = v => 65 + v * 420, y = v => 335 - v * 280;
+  return `<figure><figcaption>${esc(title)}</figcaption>
+    <svg viewBox="0 0 540 400" role="img" aria-label="${esc(title)}">
+    ${[0, .25, .5, .75, 1].map(v => `<line class="grid" x1="65" x2="485" y1="${y(v)}" y2="${y(v)}"/><text x="52" y="${y(v)+4}" text-anchor="end">${v}</text><text x="${x(v)}" y="356" text-anchor="middle">${v}</text>`).join("")}
+    <path class="axis" fill="none" d="M65 55 V335 H485"/>
+    <path class="diag" d="M65 335 L485 55"/>
+    ${lines.map((l,i) => `<polyline fill="none" stroke="var(--series-${i+1})" stroke-width="2" points="${l.points.map(([a,b]) => `${x(a)},${y(b)}`).join(" ")}"/>${dots ? l.points.map(([a,b]) => `<circle cx="${x(a)}" cy="${y(b)}" r="4" fill="var(--series-${i+1})"/>`).join("") : ""}`).join("")}
+    <text x="275" y="389" text-anchor="middle">${esc(xLabel)}</text>
+    <text transform="translate(16 195) rotate(-90)" text-anchor="middle">${esc(yLabel)}</text></svg>
+    <div class="legend">${lines.map((l,i) => `<span><i style="background:var(--series-${i+1})"></i>${esc(l.label)}</span>`).join("")}</div></figure>`;
 }
 
 // ---- 1. Beyond Accuracy ------------------------------------------------------
@@ -146,11 +181,15 @@ function beyondAccuracy(res, model) {
       "Sensitivity": m11.fmtPct(m.sensitivity),
       "Specificity": m11.fmtPct(m.specificity),
       "Precision": m.precision == null
-        ? "N/A (no positive predictions)"
+        ? "undefined (no positive predictions)"
         : m11.fmtPct(m.precision)
     }])}
 
+    <h3>Test · All five models at threshold 0.50</h3>
+    ${table(m11.MODELS.map(name => performance(res, name, 0.50)))}
+    <div class="cols">${m11.MODELS.map(name => matrix(m11.confusion(...m11.preds(res, name), 0.50), `Test · ${m11.MODEL_LABEL[name]} · 0.50`)).join("")}</div>
     <h3>What These Metrics Mean</h3>
+    <p><strong>FPR:</strong> Of patients without the outcome, the share incorrectly flagged (one minus specificity). <strong>F1:</strong> The harmonic mean of precision and sensitivity: 2TP ÷ (2TP + FP + FN).</p>
     <p><strong>Accuracy:</strong> Of all test patients, the percentage classified correctly.</p>
     <p><strong>Sensitivity:</strong> Of patients who actually have the positive outcome, the percentage correctly identified.</p>
     <p><strong>Specificity:</strong> Of patients who actually have the negative outcome, the percentage correctly identified.</p>
@@ -167,48 +206,13 @@ function thresholdResults(p, y, cutoff) {
   const m = m11.metrics(c);
 
   return `
-    <h3>Test Performance — Threshold ${cutoff.toFixed(2)}</h3>
-    ${table([{
-      Metric: "Sensitivity",
-      Value: m11.fmtPct(m.sensitivity)
-    }, {
-      Metric: "Specificity",
-      Value: m11.fmtPct(m.specificity)
-    }, {
-      Metric: "Precision",
-      Value: m.precision == null
-        ? "N/A (no positive predictions)"
-        : m11.fmtPct(m.precision)
-    }, {
-      Metric: "Flagged per 100 patients",
-      Value: m.flagged_per_100.toFixed(1)
-    }])}
-
-    <h3>Test Confusion Matrix</h3>
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th scope="col">Actual outcome</th>
-            <th scope="col">Predicted positive</th>
-            <th scope="col">Predicted negative</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <th scope="row">Positive</th>
-            <td>${int(c.tp)}</td>
-            <td>${int(c.fn)}</td>
-          </tr>
-          <tr>
-            <th scope="row">Negative</th>
-            <td>${int(c.fp)}</td>
-            <td>${int(c.tn)}</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-
+    <h3>Test · 0.50 versus selected threshold</h3>
+    ${table([0.50, cutoff].map((t,i) => {
+      const c = m11.confusion(p,y,t), m = m11.metrics(c);
+      return {Threshold: `${i ? "Selected" : "Reference"} ${t.toFixed(2)}`, Accuracy: m11.fmtPct(m.accuracy), Sensitivity: m11.fmtPct(m.sensitivity), Specificity: m11.fmtPct(m.specificity), Precision: m11.fmtPct(m.precision), "Flagged per 100": m11.fmtNum(m.flagged_per_100,1), "False alarms per 100": m11.fmtNum(m.false_alarms_per_100,1), "Missed positives": int(c.fn)};
+    }))}
+    <div class="cols">${matrix(m11.confusion(p,y,0.50), "Test · Reference threshold 0.50")}${matrix(c, `Test · Selected threshold ${cutoff.toFixed(2)}`)}</div>
+    ${state.key === "diabetes" ? `<p class="info">Screening target: sensitivity ≥ 90%. Selected threshold ${m.sensitivity >= .90 ? "meets" : "does not meet"} this target on Test patients. Choosing a threshold on these test results makes the measured sensitivity optimistic; validate it on separate patients.</p>` : "<p>There is no fixed sensitivity target for readmission. Weigh missed readmissions against the follow-up workload.</p>"}
     <h3>Classification Errors</h3>
     <p><strong>Missed positive patients (FN):</strong> ${int(c.fn)}</p>
     <p><strong>False alarms (FP):</strong> ${int(c.fp)}</p>
@@ -226,7 +230,7 @@ function threshold(res, model) {
     ${caption(`${TEST} · ${m11.MODEL_LABEL[model]}`)}
 
     <h3>Test Threshold Explorer</h3>
-    <p>Adjust the decision threshold to see how the model's predictions change on the test patients.</p>
+    <p>Flag a patient when their predicted probability is at least the threshold. The threshold is a decision separate from fitting the model: changing it changes the flags, not the probabilities or AUROC.</p>
 
     <div style="display:flex; align-items:center; gap:14px; flex-wrap:wrap; margin:18px 0;">
       <label for="threshold-slider"><strong>Decision threshold:</strong></label>
@@ -236,21 +240,21 @@ function threshold(res, model) {
         min="0"
         max="1"
         step="0.01"
-        value="0.50"
+        value="${state.cutoff.toFixed(2)}"
         style="flex:1; min-width:180px; accent-color:var(--accent, #3b82f6);"
       >
-      <strong id="threshold-value" aria-live="polite">0.50</strong>
+      <strong id="threshold-value" aria-live="polite">${state.cutoff.toFixed(2)}</strong>
     </div>
 
     <div id="threshold-results">
-      ${thresholdResults(p, y, 0.5)}
+      ${thresholdResults(p, y, state.cutoff)}
     </div>
   `;
 }
 
 // ---- 3. Ranking vs. Being Right ---------------------------------------------
 
-function ranking(res) {
+function ranking(res, model) {
   const rows = m11.MODELS
     .filter((model) => model in res.models)
     .map((model) => {
@@ -295,7 +299,15 @@ function ranking(res) {
   return `
     ${caption(`${TEST} · Comparison of all classification models`)}
 
-    <h3>AUROC Comparison</h3>
+    <h3>Test · ROC curves for all five models</h3>
+    <p>The horizontal axis is the false positive rate: of patients without the outcome, the share flagged. The vertical axis is sensitivity: of patients with the outcome, the share flagged. Each point uses a different threshold; the dashed diagonal represents chance ranking.</p>
+    ${plot(m11.MODELS.map(name => {const r = m11.roc(...m11.preds(res,name)); return {label:m11.MODEL_LABEL[name], points:r.fpr.map((v,i) => [v,r.tpr[i]])};}), "Test · ROC comparison", "False positive rate", "Sensitivity / true positive rate")}
+    <h3>Test · Probability calibration — ${esc(m11.MODEL_LABEL[model])}</h3>
+    <p>Ranking is separate from reliable probabilities. Compare the average predicted probability with the observed share of positives in ten roughly equal-size groups. Points near the dashed diagonal agree; above it the model underestimates risk, below it overestimates risk. Groups with tied probabilities may differ by chance.</p>
+    ${plot([{label:m11.MODEL_LABEL[model], points:m11.calibration(...m11.preds(res,model)).map(b => [b.mean_pred,b.observed])}], "Test · Calibration", "Mean predicted probability", "Observed positive share", true)}
+    ${table(m11.calibration(...m11.preds(res,model)).map((b,i) => ({"Test group":i+1, Patients:int(b.n), "Mean predicted":m11.fmtPct(b.mean_pred), "Observed positive share":m11.fmtPct(b.observed)})))}
+    <p>AUROC is the chance a randomly chosen positive receives a higher score than a randomly chosen negative, with ties counting half. It does not give accuracy, choose a threshold, guarantee calibrated probabilities, or establish clinical usefulness.</p>
+    <h3>Test · AUROC Comparison</h3>
     <p>
       AUROC measures how well a model distinguishes positive patients
       from negative patients across different decision thresholds.
@@ -304,7 +316,7 @@ function ranking(res) {
 
     ${chartRows}
 
-    <h3>Model Performance Comparison</h3>
+    <h3>Test · Model Performance Comparison at threshold 0.50</h3>
     ${table(rows.map((r) => ({
       Model: r.label,
       AUROC: m11.fmtNum(r.auc, 3),
@@ -321,14 +333,14 @@ function ranking(res) {
 
 // ---- 4. Training vs. Test ----------------------------------------------------
 
-function trainVsTest(res) {
+function trainVsTest(res, model) {
   const s = m11.aurocSummary(res);
 
   const rows = Object.entries(s).map(([model, v]) => ({
     Model: m11.MODEL_LABEL[model],
     [`${TRAIN} AUROC`]: m11.fmtNum(v.train, 3),
     [`${TEST} AUROC`]: m11.fmtNum(v.test, 3),
-    "Performance gap": m11.fmtNum(v.train - v.test, 3)
+    "Performance gap": m11.fmtNum(v.gap, 3)
   }));
 
   const charts = Object.entries(s).map(([model, v]) => `
@@ -380,6 +392,9 @@ function trainVsTest(res) {
   return `
     ${caption(`${TRAIN} and ${TEST} · AUROC comparison`)}
 
+    <h3>Selected model · ${esc(m11.MODEL_LABEL[model])}</h3>
+    ${table(["train","test"].map(part => ({Partition:part === "train" ? TRAIN : TEST, Patients:int(res[part].n), ...performance(res,model,0.50,part), AUROC:m11.fmtNum(s[model][part])})))}
+    <p>Selected-model classification metrics use threshold 0.50. Training rows were used to fit the model and its preprocessing; Test rows were held out using the supplied split.</p>
     <h3>Training vs. Test AUROC</h3>
     <p>
       Training AUROC measures performance on the data used to train
@@ -389,7 +404,7 @@ function trainVsTest(res) {
 
     ${charts}
 
-    <h3>Model Performance Comparison</h3>
+    <h3>Training and Test · All-model AUROC comparison</h3>
     ${table(rows)}
 
     <h3>Understanding the Results</h3>
@@ -397,6 +412,7 @@ function trainVsTest(res) {
     <p><strong>Test performance:</strong> How well the model performs on unfamiliar data.</p>
     <p><strong>Performance gap:</strong> A large difference between training and test AUROC can indicate overfitting.</p>
     <p><strong>Overfitting:</strong> When a model learns the training data very well but does not perform as well on new data.</p>
+    <p>Training results flatter models. Large positive gaps are evidence of overfitting, not proof that any individual patient was memorised. A slightly higher Test AUROC can occur by sampling variation. These samples do not establish safety, fairness, or performance in another hospital or population; prospective validation and capacity planning are still needed.</p>
     <p><strong>Important:</strong> Test performance provides a better indication of how well the model may generalize to new patients.</p>
   `;
 }
@@ -412,9 +428,12 @@ const RENDER = Object.fromEntries(
 
 // ---- Page -------------------------------------------------------------------
 
+let renderVersion = 0;
 async function render() {
+  const version = ++renderVersion;
   const { section, key, model } = state;
   const res = await load(key);
+  if (version !== renderVersion) return;
 
   $("section-title").textContent = section;
   const content = $("content");
@@ -441,7 +460,7 @@ async function render() {
       (o.value in res.models ? "" : " (not trained yet)");
   });
 
-  content.innerHTML = model in res.models
+  content.innerHTML = `<p class="info">${esc(JOB[key])}</p>` + (model in res.models
     ? RENDER[section](res, model)
     : `
       <p class="warn">
@@ -449,7 +468,7 @@ async function render() {
         run <code>python -m analysis</code>,
         then commit and push <code>results/</code>.
       </p>
-    `;
+    `);
 
   // Connect the threshold slider after its HTML has been inserted.
   const slider = $("threshold-slider");
@@ -460,6 +479,7 @@ async function render() {
 
     slider.addEventListener("input", () => {
       const cutoff = Number(slider.value);
+      state.cutoff = cutoff;
       value.textContent = cutoff.toFixed(2);
       results.innerHTML = thresholdResults(p, y, cutoff);
     });

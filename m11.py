@@ -94,6 +94,7 @@ def metrics(c: dict) -> dict:
         "negatives": fp + tn,
         "flagged": flagged,
         "flagged_per_100": _ratio(100 * flagged, n),
+        "false_alarms_per_100": _ratio(100 * fp, n),
         "prevalence": _ratio(tp + fn, n),
         "accuracy": _ratio(tp + tn, n),
         "sensitivity": _ratio(tp, tp + fn),
