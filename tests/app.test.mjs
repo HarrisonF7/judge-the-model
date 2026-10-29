@@ -109,7 +109,7 @@ test('GitHub Pages assets resolve inside a repository subpath', () => {
     assert.ok(url.pathname.startsWith(base.pathname));
     assert.deepEqual(JSON.parse(read(url.pathname.slice(base.pathname.length))),data[key]);
   }
-  assert.ok(read('web/app.js').includes('fetch(`../results/${name}.json`)'));
+  assert.ok(read('web/app.js').includes('fetch(`../results/${name}.json`,'));
   assert.ok(read('web/app.js').includes('from "./m11.js"'));
   assert.equal(read('.nojekyll'),'');
 });
@@ -135,4 +135,24 @@ test('every slider position updates side-by-side metrics for both datasets and a
       assert.equal((html.match(/TP: caught positives/g)||[]).length,2);
     }
   }
+});
+
+test('recommendations bypass the browser cache and display both exported answers', async () => {
+  const calls = [];
+  const h = harness(async (url, options) => {
+    calls.push({url, options});
+    return {ok:true, json:async () => data.decisions};
+  });
+  await h.run('recommendations()');
+  assert.equal(calls[0].url, '../results/decisions.json');
+  assert.equal(calls[0].options.cache, 'no-store');
+  for (const answer of Object.values(data.decisions.recommendations))
+    assert.ok(h.elements.recommendations.innerHTML.includes(answer));
+  assert.ok(!h.elements.recommendations.innerHTML.includes('No recommendations yet'));
+});
+test('a recommendations fetch failure is not reported as unwritten decisions', async () => {
+  const h = harness(async () => ({ok:false}));
+  await h.run('recommendations()');
+  assert.ok(h.elements.recommendations.innerHTML.includes('could not be loaded'));
+  assert.ok(!h.elements.recommendations.innerHTML.includes('No recommendations yet'));
 });

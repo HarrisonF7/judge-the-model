@@ -38,7 +38,8 @@ const cache = {};
 async function load(name) {
   if (!(name in cache)) {
     try {
-      const r = await fetch(`../results/${name}.json`);
+      const r = await fetch(`../results/${name}.json`,
+        name === "decisions" ? { cache: "no-store" } : undefined);
       if (!r.ok) return null;
       cache[name] = await r.json();
     } catch { return null; }
@@ -80,9 +81,16 @@ function table(rows) {
 
 // Recommendations
 async function recommendations() {
-  const recs = (await load("decisions"))?.recommendations || {};
-  const any = Object.values(recs).some(Boolean);
+  const decisions = await load("decisions");
   const target = $("recommendations");
+  if (!decisions) {
+    target.innerHTML = '<h2 id="rec-h">Recommendations</h2>' + caption(
+      "Recommendations could not be loaded. Reload the page to try again."
+    );
+    return;
+  }
+  const recs = decisions.recommendations || {};
+  const any = Object.values(recs).some(Boolean);
 
   target.innerHTML = '<h2 id="rec-h">Recommendations</h2>' + (any
     ? m11.DATASETS.map((k) =>
