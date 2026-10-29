@@ -1,4 +1,4 @@
-**App:** _paste your public app link here_
+ **App:** [https://harrisonf7.github.io/judge-the-model/]
 
 # Judge the Model
 
@@ -8,7 +8,8 @@ An app that helps a clinical lead judge whether any classifier is fit for each j
 
 Submit the link to **this repository** on Canvas, plus your five Canvas answers.
 
-## Quick start
+## Quick Start
+
 ```bash
 python -m venv .venv
 source .venv/bin/activate            # Windows: .venv\Scripts\activate
@@ -21,11 +22,17 @@ python check.py --stage setup
 | 2 | — | Fill in `Before results` in `DECISIONS.md`; commit and push |
 | 3 | `python -m analysis` | Complete the kNN TODO in `analysis/models.py` |
 | 5 | `python -m analysis` (again) | Fill in `Recommendations` and `Design choice and AI use` in `DECISIONS.md` |
-| any | `python check.py` | — |
+| Any | `python check.py` | — |
 
-Run the app on your computer: `streamlit run streamlit_app.py` (Streamlit) or `npm start` (Node.js). Build **one** of the two; see `SETUP.md`.
+Run the app on your computer:
 
-## What's here
+- **Streamlit:** `streamlit run streamlit_app.py`
+- **Node.js:** `npm start`
+
+Build **one** of the two options. See `SETUP.md`.
+
+## What's Here
+
 | File | What it is |
 |---|---|
 | `DECISIONS.md` | Your decisions: what matters for each job, your recommendations, and one design choice |
