@@ -1,4 +1,4 @@
- **App:** [https://harrisonf7.github.io/judge-the-model/]
+ [Judge the Model – Public App](https://harrisonf7.github.io/judge-the-model/)
 
 # Judge the Model
 
@@ -17,32 +17,32 @@ pip install -r requirements.txt
 python check.py --stage setup
 ```
 
-| Step | Command | Before you run it |
+| **Step** | **Command** | **Before you run it** |
 |---|---|---|
 | 2 | — | Fill in `Before results` in `DECISIONS.md`; commit and push |
 | 3 | `python -m analysis` | Complete the kNN TODO in `analysis/models.py` |
 | 5 | `python -m analysis` (again) | Fill in `Recommendations` and `Design choice and AI use` in `DECISIONS.md` |
 | Any | `python check.py` | — |
 
-Run the app on your computer:
+Run the app locally:
 
-- **Streamlit:** `streamlit run streamlit_app.py`
-- **Node.js:** `npm start`
-
-Build **one** of the two options. See `SETUP.md`.
+```bash
+bash run_app.sh
+```
 
 ## What's Here
 
-| File | What it is |
+| **File** | **What it is** |
 |---|---|
 | `DECISIONS.md` | Your decisions: what matters for each job, your recommendations, and one design choice |
-| `AGENT_BRIEF.md` | Rules for your AI coding agent (have it read this first) |
-| `SETUP.md` | How to run and publish on Streamlit Community Cloud or GitHub Pages |
-| `analysis/` | The workflow; you complete one pipeline in `analysis/models.py` |
-| `m11.py` | The shared metric helpers: every number comes from these |
-| `streamlit_app.py`, `requirements.txt` | Your app if you choose Streamlit, hosted on Streamlit Community Cloud |
-| `web/`, `package.json` | Your app if you choose Node.js (`web/app.js`, with the metric helpers in `web/m11.js`), hosted on GitHub Pages (`index.html` and `.nojekyll` at the top level are for Pages) |
-| `results/` | What the analysis exports; the app reads only these files |
-| `data/` | The two datasets, the dictionary (`data/README.md`) and `manifest.json` |
-| `check.py` | Integrity checks: `python check.py` must pass before you submit |
-| `prompts/` | Optional: your AI prompts, one file per session |
+| `AGENT_BRIEF.md` | Rules for your AI coding agent |
+| `SETUP.md` | How to run and publish the app |
+| `analysis/` | The modeling workflow |
+| `m11.py` | Shared metric helpers |
+| `streamlit_app.py`, `requirements.txt` | Streamlit version of the app |
+| `web/`, `package.json` | Node.js app, including `web/app.js` and `web/m11.js` |
+| `run_app.sh` | Script to launch the Node.js app locally |
+| `results/` | Results exported by the Python analysis |
+| `data/` | Datasets, data dictionary, and manifest |
+| `check.py` | Integrity checks |
+| `prompts/` | Optional AI prompts, one file per session |
