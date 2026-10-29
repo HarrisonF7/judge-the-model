@@ -202,16 +202,27 @@ function beyondAccuracy(res, model) {
 // ---- 2. A Threshold for the Job ---------------------------------------------
 
 function thresholdResults(p, y, cutoff) {
+  const referenceCounts = m11.confusion(p, y, 0.50);
+  const reference = m11.metrics(referenceCounts);
   const c = m11.confusion(p, y, cutoff);
   const m = m11.metrics(c);
 
   return `
     <h3>Test · 0.50 versus selected threshold</h3>
-    ${table([0.50, cutoff].map((t,i) => {
-      const c = m11.confusion(p,y,t), m = m11.metrics(c);
-      return {Threshold: `${i ? "Selected" : "Reference"} ${t.toFixed(2)}`, Accuracy: m11.fmtPct(m.accuracy), Sensitivity: m11.fmtPct(m.sensitivity), Specificity: m11.fmtPct(m.specificity), Precision: m11.fmtPct(m.precision), "Flagged per 100": m11.fmtNum(m.flagged_per_100,1), "False alarms per 100": m11.fmtNum(m.false_alarms_per_100,1), "Missed positives": int(c.fn)};
+    ${table([
+      ["Sensitivity", "sensitivity", m11.fmtPct],
+      ["Specificity", "specificity", m11.fmtPct],
+      ["Precision", "precision", m11.fmtPct],
+      ["Flagged per 100 patients", "flagged_per_100", v => m11.fmtNum(v, 1)],
+      ["Accuracy", "accuracy", m11.fmtPct],
+      ["False alarms per 100 patients", "false_alarms_per_100", v => m11.fmtNum(v, 1)],
+      ["Missed positives", "missed", int]
+    ].map(([label, key, format]) => {
+      return { Metric: label,
+        "Test · Reference 0.50": format(key === "missed" ? referenceCounts.fn : reference[key]),
+        [`Test · Selected ${cutoff.toFixed(2)}`]: format(key === "missed" ? c.fn : m[key]) };
     }))}
-    <div class="cols">${matrix(m11.confusion(p,y,0.50), "Test · Reference threshold 0.50")}${matrix(c, `Test · Selected threshold ${cutoff.toFixed(2)}`)}</div>
+    <div class="cols">${matrix(referenceCounts, "Test · Reference threshold 0.50")}${matrix(c, `Test · Selected threshold ${cutoff.toFixed(2)}`)}</div>
     ${state.key === "diabetes" ? `<p class="info">Screening target: sensitivity ≥ 90%. Selected threshold ${m.sensitivity >= .90 ? "meets" : "does not meet"} this target on Test patients. Choosing a threshold on these test results makes the measured sensitivity optimistic; validate it on separate patients.</p>` : "<p>There is no fixed sensitivity target for readmission. Weigh missed readmissions against the follow-up workload.</p>"}
     <h3>Classification Errors</h3>
     <p><strong>Missed positive patients (FN):</strong> ${int(c.fn)}</p>

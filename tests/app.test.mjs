@@ -113,3 +113,26 @@ test('GitHub Pages assets resolve inside a repository subpath', () => {
   assert.ok(read('web/app.js').includes('from "./m11.js"'));
   assert.equal(read('.nojekyll'),'');
 });
+test('every slider position updates side-by-side metrics for both datasets and all models', async () => {
+  const h = harness();
+  for (const key of m11.DATASETS) for (const model of m11.MODELS) {
+    await h.run(`state.key=${JSON.stringify(key)};state.model=${JSON.stringify(model)};state.section=SECTIONS[1];render()`);
+    const [p,y] = m11.preds(data[key],model);
+    const reference = m11.metrics(m11.confusion(p,y,.50));
+    for (let step=0; step<=100; step++) {
+      const cutoff=step/100;
+      h.elements['threshold-slider'].value=String(cutoff);
+      h.elements['threshold-slider'].listeners.input();
+      const html=h.elements['threshold-results'].innerHTML;
+      const actual=m11.metrics(m11.confusion(p,y,cutoff));
+      assert.ok(html.includes('<th scope="col">Test · Reference 0.50</th>'));
+      assert.ok(html.includes(`<th scope="col">Test · Selected ${cutoff.toFixed(2)}</th>`));
+      for (const [label,field,format] of [
+        ['Sensitivity','sensitivity',m11.fmtPct], ['Specificity','specificity',m11.fmtPct],
+        ['Precision','precision',m11.fmtPct], ['Flagged per 100 patients','flagged_per_100',v=>m11.fmtNum(v,1)]
+      ]) assert.ok(html.includes(`<th scope="row">${label}</th><td class="num">${format(reference[field])}</td><td class="num">${format(actual[field])}</td>`),`${key}/${model}/${cutoff}/${field}`);
+      assert.equal(h.elements['threshold-value'].textContent,cutoff.toFixed(2));
+      assert.equal((html.match(/TP: caught positives/g)||[]).length,2);
+    }
+  }
+});
