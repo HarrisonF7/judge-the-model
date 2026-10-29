@@ -1,11 +1,11 @@
 {
-  "exported_at": null,
-  "words": 0,
+  "exported_at": "2026-10-29T21:39:13Z",
+  "words": 73,
   "word_limit": 150,
   "sections": {
     "before_results": {
-      "readmission": "",
-      "diabetes": ""
+      "readmission": "The positive class is patients readmitted to the hospital within 30 days. Missed positives are more important because failing to identify patients at risk could prevent them from receiving additional support and follow-up care.",
+      "diabetes": "The positive class is patients with diabetes, defined by a doctor's diagnosis or HbA1c of at least 6.5%. Missed positives are more important because failing to identify patients with diabetes could delay treatment and increase the risk of complications."
     },
     "recommendations": {
       "readmission": "",
@@ -17,7 +17,7 @@
     }
   },
   "complete": {
-    "before_results": false,
+    "before_results": true,
     "recommendations": false,
     "design": false
   },

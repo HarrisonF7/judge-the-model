@@ -1,3 +1,4 @@
+
 """The five models. Everyone compares the same models with the same settings.
 
 Every model is built fresh by a function, as one scikit-learn Pipeline. The whole pipeline is
@@ -48,12 +49,13 @@ def logreg():
 
 
 def knn():
-    """k-nearest neighbours with k = 25.
-
-    TODO: return a pipeline like logreg(): encode() → median imputation → scaling →
-    KNeighborsClassifier(n_neighbors=25). Scaling must be inside the pipeline.
-    """
-    raise NotImplementedError("TODO: complete knn() in analysis/models.py, following the logreg() example.")
+    """k-nearest neighbours with k = 25."""
+    return make_pipeline(
+        encode(),
+        SimpleImputer(strategy="median"),
+        StandardScaler(),
+        KNeighborsClassifier(n_neighbors=25),
+    )
 
 
 def rf():
