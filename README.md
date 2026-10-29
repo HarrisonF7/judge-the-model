@@ -31,7 +31,7 @@ Run the Node.js app locally:
 bash run_app.sh
 ```
 
-Then open http://localhost:8766/ in your browser.
+Then open [http://localhost:8766/](http://localhost:8766/) in your browser.
 
 ## What's Here
 
